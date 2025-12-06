@@ -1,0 +1,15 @@
+[versions]
+guava = "33.4.5-jre"
+junit = "4.13.2"
+log4j = "2.24.3"
+javafx-controls = "23.0.2"
+sqlite = "3.46.0.0"
+
+[libraries]
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+junit = { module = "junit:junit", version.ref = "junit" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
+log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
+javafx-controls = { module = "org.openjfx:javafx-controls", version.ref = "javafx-controls" }
+javafx-fxml = { module = "org.openjfx:javafx-fxml", version.ref = "javafx-controls" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }

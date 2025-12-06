@@ -1,0 +1,50 @@
+@startuml
+entity "groups" as groups {
+    + id : SERIAL
+    --
+    name : TEXT
+}
+
+entity "subjects" as subjects{
+    + id : SERIAL
+    --
+    name : TEXT
+}
+
+entity "lessons" as lessons {
+    + id : SERIAL
+    --
+    name : TEXT
+    subject_id : INTEGER
+}
+
+entity "subject_to_group"{
+    + id : SERIAL
+    --
+    subject_id : INTEGER
+    group_id : INTEGER
+}
+
+entity "students" as students {
+    + id : SERIAL
+    --
+    full_name : TEXT
+    group_id : INTEGER
+}
+
+entity "grades" as grades {
+    + id : SERIAL
+    --
+    student_id : INTEGER
+    lesson_id : INTEGER
+    grade : NUMERIC(3,1)
+    date_recorded : DATE
+}
+
+groups "1" --o "*" students : group_id
+students "1" --o "*" grades : student_id
+lessons "1" --o "*" grades : lessons_id
+subjects "1" --o "*" lessons : subject_id
+subjects --o subject_to_group : subject_id
+groups --o subject_to_group : group_id
+@enduml
