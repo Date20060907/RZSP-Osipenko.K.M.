@@ -13,18 +13,20 @@ public class SubjectGroupLinkDao {
 
     /**
      * Добавить связь между предметом и группой.
+     * 
      * @return ID новой связи или -1 при ошибке
      */
     public int insert(SubjectGroupLink link) {
         // Проверяем, не существует ли уже такая связь
         if (exists(link.getSubjectId(), link.getGroupId())) {
-            System.out.println("Связь уже существует: subjectId=" + link.getSubjectId() + ", groupId=" + link.getGroupId());
+            System.out.println(
+                    "Связь уже существует: subjectId=" + link.getSubjectId() + ", groupId=" + link.getGroupId());
             return -1;
         }
 
         String sql = "INSERT INTO " + TABLE_NAME + " (subject_id, group_id) VALUES (?, ?)";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setInt(1, link.getSubjectId());
             pstmt.setInt(2, link.getGroupId());
@@ -51,7 +53,7 @@ public class SubjectGroupLinkDao {
     public boolean exists(int subjectId, int groupId) {
         String sql = "SELECT 1 FROM " + TABLE_NAME + " WHERE subject_id = ? AND group_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, subjectId);
             pstmt.setInt(2, groupId);
@@ -72,15 +74,14 @@ public class SubjectGroupLinkDao {
         String sql = "SELECT id, subject_id, group_id FROM " + TABLE_NAME;
 
         try (Connection conn = DatabaseManager.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 links.add(new SubjectGroupLink(
-                    rs.getInt("id"),
-                    rs.getInt("subject_id"),
-                    rs.getInt("group_id")
-                ));
+                        rs.getInt("id"),
+                        rs.getInt("subject_id"),
+                        rs.getInt("group_id")));
             }
         } catch (SQLException e) {
             System.err.println("Ошибка при получении всех связей: " + e.getMessage());
@@ -96,7 +97,7 @@ public class SubjectGroupLinkDao {
         String sql = "SELECT subject_id FROM " + TABLE_NAME + " WHERE group_id = ?";
 
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, groupId);
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -118,7 +119,7 @@ public class SubjectGroupLinkDao {
         String sql = "SELECT group_id FROM " + TABLE_NAME + " WHERE subject_id = ?";
 
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, subjectId);
             try (ResultSet rs = pstmt.executeQuery()) {
@@ -138,7 +139,7 @@ public class SubjectGroupLinkDao {
     public boolean deleteById(int id) {
         String sql = "DELETE FROM " + TABLE_NAME + " WHERE id = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, id);
             return pstmt.executeUpdate() > 0;
@@ -154,7 +155,7 @@ public class SubjectGroupLinkDao {
     public boolean deleteByGroupId(int groupId) {
         String sql = "DELETE FROM " + TABLE_NAME + " WHERE group_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, groupId);
             return pstmt.executeUpdate() > 0;
@@ -170,7 +171,7 @@ public class SubjectGroupLinkDao {
     public boolean deleteBySubjectId(int subjectId) {
         String sql = "DELETE FROM " + TABLE_NAME + " WHERE subject_id = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, subjectId);
             return pstmt.executeUpdate() > 0;
@@ -178,5 +179,22 @@ public class SubjectGroupLinkDao {
             System.err.println("Ошибка при удалении связей для предмета " + subjectId + ": " + e.getMessage());
         }
         return false;
+    }
+
+    /**
+     * Удалить связь по ID группы и ID предмета.
+     */
+    public boolean deleteByGroupIdAndSubjectId(int groupId, int subjectId) {
+        String sql = "DELETE FROM " + TABLE_NAME + " WHERE group_id = ? AND subject_id = ?";
+        try (Connection conn = DatabaseManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, groupId);
+            pstmt.setInt(2, subjectId);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Ошибка при удалении связи: " + e.getMessage());
+            return false;
+        }
     }
 }

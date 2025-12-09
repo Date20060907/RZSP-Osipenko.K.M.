@@ -61,9 +61,9 @@ public class SubjectListController {
 
         // Получаем сами предметы
         List<Subject> linkedSubjects = subjectIds.stream()
-            .map(subjectDao::findById)
-            .filter(s -> s != null)
-            .collect(Collectors.toList());
+                .map(subjectDao::findById)
+                .filter(s -> s != null)
+                .collect(Collectors.toList());
 
         subjects = FXCollections.observableArrayList(linkedSubjects);
     }
@@ -134,8 +134,7 @@ public class SubjectListController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите CSV файл с дисциплинами");
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("CSV файлы", "*.csv")
-        );
+                new FileChooser.ExtensionFilter("CSV файлы", "*.csv"));
 
         File selectedFile = fileChooser.showOpenDialog(currentStage);
         if (selectedFile == null) {
@@ -173,7 +172,8 @@ public class SubjectListController {
             if (subject == null) {
                 subject = new Subject(name);
                 int id = subjectDao.insert(subject);
-                if (id == -1) continue;
+                if (id == -1)
+                    continue;
                 subject.setId(id);
             }
 
@@ -192,27 +192,30 @@ public class SubjectListController {
     // === ИНИЦИАЛИЗАЦИЯ ===
     @FXML
     public void initialize() {
-        subjectListView.setCellFactory(param -> new SubjectElement());
-        // Список загрузится в setGroup()
+        // Cell factory теперь должен знать groupId
+        // Но groupId известен только в setGroup!
+    }
+
+    public void setGroup(Group group) {
+        this.group = group;
+        if (group != null) {
+            mainLabel.setText("Список дисциплин | " + group.getName());
+            loadSubjectsForCurrentGroup();
+            // Устанавливаем ячейку с передачей groupId
+            subjectListView.setCellFactory(param -> new SubjectElement(group.getId()));
+            subjectListView.setItems(subjects);
+        }
     }
 
     // === ДВОЙНОЙ КЛИК (можно оставить как заглушку) ===
     @FXML
     public void open(MouseEvent event) {
-        if (event.getClickCount() != 2) return;
+        if (event.getClickCount() != 2)
+            return;
         Subject selected = subjectListView.getSelectionModel().getSelectedItem();
         if (selected != null) {
             System.out.println("Двойной клик по предмету: " + selected.getName());
         }
     }
 
-    // === УСТАНОВКА ГРУППЫ И ЗАГРУЗКА СВЯЗАННЫХ ПРЕДМЕТОВ ===
-    public void setGroup(Group group) {
-        this.group = group;
-        if (group != null) {
-            mainLabel.setText("Список дисциплин | " + group.getName());
-            loadSubjectsForCurrentGroup();
-            subjectListView.setItems(subjects);
-        }
-    }
 }

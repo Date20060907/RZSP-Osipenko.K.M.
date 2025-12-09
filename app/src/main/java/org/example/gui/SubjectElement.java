@@ -1,61 +1,76 @@
 package org.example.gui;
 
 import java.io.IOException;
+import java.util.List;
 
-import org.example.dao.GroupDao;
 import org.example.dao.SubjectDao;
+import org.example.dao.SubjectGroupLinkDao;
 import org.example.dataclasses.Subject;
 
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
 
 public class SubjectElement extends ListCell<Subject> {
 
-	private final HBox root;
-	private final Label subjectNameLabel;
-	private final Button deleteButton;
+	@FXML
+	private Label subjectNameLabel;
 
-	public SubjectElement() {
+	@FXML
+	private Button deleteButton;
+
+	private HBox root;
+	private int groupId; // ← ID группы, с которой связана дисциплина
+
+	// Конструктор с groupId
+	public SubjectElement(int groupId) {
+		this.groupId = groupId;
 		try {
-			// Загружаем FXML один раз при создании ячейки
-			FXMLLoader loader = new FXMLLoader(
-					getClass().getResource("/SubjectElement.fxml"));
+			FXMLLoader loader = new FXMLLoader(getClass().getResource("/SubjectElement.fxml"));
 			loader.setController(this);
 			root = loader.load();
-
-			subjectNameLabel = (Label) root.lookup("#subjectNameLabel");
-			deleteButton = (Button) root.lookup("#deleteButton");
-
-			deleteButton.setOnAction(e -> delete());
-
 		} catch (IOException e) {
 			throw new RuntimeException("Не удалось загрузить SubjectElement.fxml", e);
 		}
 	}
 
-@FXML
-private void delete() {
-    Subject itemToDelete = getItem();
-    if (itemToDelete != null) {
-        ListView<Subject> listView = getListView();
-        if (listView != null) {
-            // Удаляем из списка в интерфейсе
-            listView.getItems().remove(itemToDelete);
+	@FXML
+	private void delete() {
+		Subject itemToDelete = getItem();
+		if (itemToDelete == null)
+			return;
 
-            // Удаляем из базы данных
-            SubjectDao subjectDao = new SubjectDao();
-            subjectDao.deleteById(itemToDelete.getId());
+		// Удаляем из UI
+		getListView().getItems().remove(itemToDelete);
 
-            System.out.println("Дисциплина \"" + itemToDelete.getName() + "\" удалена.");
-        }
-    }
-}
+		SubjectGroupLinkDao linkDao = new SubjectGroupLinkDao();
+		SubjectDao subjectDao = new SubjectDao();
+
+		// 1. Удаляем связь
+		boolean linkDeleted = linkDao.deleteByGroupIdAndSubjectId(groupId, itemToDelete.getId());
+		if (!linkDeleted) {
+			System.err.println("Не удалось удалить связь для предмета: " + itemToDelete.getName());
+			return;
+		}
+
+		// 2. Проверяем, есть ли ещё связи у этого предмета
+		List<Integer> remainingGroupIds = linkDao.findGroupIdsBySubjectId(itemToDelete.getId());
+		if (remainingGroupIds.isEmpty()) {
+			// 3. Если связей нет — удаляем сам предмет
+			boolean subjectDeleted = subjectDao.deleteById(itemToDelete.getId());
+			if (subjectDeleted) {
+				System.out.println("Предмет \"" + itemToDelete.getName() + "\" полностью удалён (не используется).");
+			} else {
+				System.err.println("Не удалось удалить предмет: " + itemToDelete.getName());
+			}
+		} else {
+			System.out.println("Связь с дисциплиной \"" + itemToDelete.getName()
+					+ "\" удалена. Предмет остаётся (используется в других группах).");
+		}
+	}
 
 	@Override
 	protected void updateItem(Subject item, boolean empty) {
@@ -67,5 +82,4 @@ private void delete() {
 			setGraphic(root);
 		}
 	}
-
 }
