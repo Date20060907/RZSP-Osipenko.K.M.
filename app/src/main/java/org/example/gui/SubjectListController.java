@@ -20,6 +20,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -208,14 +209,35 @@ public class SubjectListController {
     }
 
     // === ДВОЙНОЙ КЛИК (можно оставить как заглушку) ===
-    @FXML
-    public void open(MouseEvent event) {
-        if (event.getClickCount() != 2)
-            return;
-        Subject selected = subjectListView.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            System.out.println("Двойной клик по предмету: " + selected.getName());
-        }
+@FXML
+public void open(MouseEvent event) {
+    if (event.getClickCount() != 2) return;
+
+    Subject selected = subjectListView.getSelectionModel().getSelectedItem();
+    if (selected == null || group == null) return;
+
+    try {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/AssesmentTable.fxml"));
+        Parent root = loader.load();
+
+        AssesmentTableController controller = loader.getController();
+        controller.setContext(group, selected); // ← передаём группу и предмет
+
+        Scene scene = new Scene(root);
+        Stage currentStage = (Stage) subjectListView.getScene().getWindow();
+
+        Stage newStage = new Stage();
+        newStage.setScene(scene);
+        newStage.setTitle("Оценки: " + selected.getName());
+        newStage.setMaximized(true);
+        newStage.show();
+
+        currentStage.close(); // закрываем предыдущее окно
+
+    } catch (IOException e) {
+        e.printStackTrace();
+        // Можно показать Alert
     }
+}
 
 }
