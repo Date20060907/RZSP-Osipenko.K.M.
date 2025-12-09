@@ -1,5 +1,7 @@
 package org.example.dao;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.example.dataclasses.Student;
 import org.example.util.DatabaseManager;
 
@@ -7,13 +9,21 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Класс доступа к данным (DAO) для сущности студента (Student).
+ * Обеспечивает взаимодействие с таблицей 'students' в базе данных,
+ * предоставляя методы для вставки, поиска, обновления и удаления записей.
+ */
 public class StudentDao {
 
+    private static final Logger logger = LogManager.getLogger(StudentDao.class);
     private static final String TABLE_NAME = "students";
 
     /**
-     * Добавить студента в БД.
-     * @return ID нового студента или -1 при ошибке
+     * Вставляет нового студента в базу данных.
+     *
+     * @param student объект студента для сохранения
+     * @return идентификатор вставленного студента или -1 в случае ошибки
      */
     public int insert(Student student) {
         String sql = "INSERT INTO " + TABLE_NAME + " (full_name, group_id) VALUES (?, ?)";
@@ -34,13 +44,16 @@ public class StudentDao {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при добавлении студента: " + e.getMessage());
+            logger.error("Ошибка при добавлении студента: {}", e.getMessage(), e);
         }
         return -1;
     }
 
     /**
-     * Найти студента по ID.
+     * Находит студента по его уникальному идентификатору.
+     *
+     * @param id идентификатор студента
+     * @return объект Student или null, если запись не найдена
      */
     public Student findById(int id) {
         String sql = "SELECT id, full_name, group_id FROM " + TABLE_NAME + " WHERE id = ?";
@@ -58,13 +71,15 @@ public class StudentDao {
                 );
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при поиске студента по ID: " + e.getMessage());
+            logger.error("Ошибка при поиске студента по ID {}: {}", id, e.getMessage(), e);
         }
         return null;
     }
 
     /**
-     * Получить всех студентов.
+     * Возвращает список всех студентов из базы данных.
+     *
+     * @return список объектов Student, возможно пустой
      */
     public List<Student> findAll() {
         List<Student> students = new ArrayList<>();
@@ -82,13 +97,16 @@ public class StudentDao {
                 ));
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при получении списка студентов: " + e.getMessage());
+            logger.error("Ошибка при получении списка всех студентов: {}", e.getMessage(), e);
         }
         return students;
     }
 
     /**
-     * Получить студентов по ID группы.
+     * Находит всех студентов, принадлежащих указанной группе.
+     *
+     * @param groupId идентификатор группы
+     * @return список студентов из данной группы, возможно пустой
      */
     public List<Student> findByGroupId(int groupId) {
         List<Student> students = new ArrayList<>();
@@ -108,13 +126,16 @@ public class StudentDao {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при получении студентов для группы " + groupId + ": " + e.getMessage());
+            logger.error("Ошибка при получении студентов для группы {}: {}", groupId, e.getMessage(), e);
         }
         return students;
     }
 
     /**
-     * Обновить студента.
+     * Обновляет данные существующего студента в базе данных.
+     *
+     * @param student объект студента с обновлёнными данными
+     * @return true, если обновление прошло успешно, иначе false
      */
     public boolean update(Student student) {
         String sql = "UPDATE " + TABLE_NAME + " SET full_name = ?, group_id = ? WHERE id = ?";
@@ -126,13 +147,17 @@ public class StudentDao {
             pstmt.setInt(3, student.getId());
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Ошибка при обновлении студента: " + e.getMessage());
+            logger.error("Ошибка при обновлении студента с ID {}: {}", student.getId(), e.getMessage(), e);
         }
         return false;
     }
 
     /**
-     * Удалить студента по ID (каскадно удалятся и оценки).
+     * Удаляет студента по его уникальному идентификатору.
+     * Связанные оценки автоматически удаляются благодаря каскадному удалению (ON DELETE CASCADE) в БД.
+     *
+     * @param id идентификатор студента
+     * @return true, если запись была удалена, иначе false
      */
     public boolean deleteById(int id) {
         String sql = "DELETE FROM " + TABLE_NAME + " WHERE id = ?";
@@ -142,13 +167,17 @@ public class StudentDao {
             pstmt.setInt(1, id);
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Ошибка при удалении студента: " + e.getMessage());
+            logger.error("Ошибка при удалении студента с ID {}: {}", id, e.getMessage(), e);
         }
         return false;
     }
 
     /**
-     * Удалить всех студентов из группы (например, при удалении группы).
+     * Удаляет всех студентов, принадлежащих указанной группе.
+     * Обычно вызывается при удалении самой группы.
+     *
+     * @param groupId идентификатор группы
+     * @return true, если хотя бы одна запись была удалена, иначе false
      */
     public boolean deleteByGroupId(int groupId) {
         String sql = "DELETE FROM " + TABLE_NAME + " WHERE group_id = ?";
@@ -158,7 +187,7 @@ public class StudentDao {
             pstmt.setInt(1, groupId);
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Ошибка при удалении студентов группы " + groupId + ": " + e.getMessage());
+            logger.error("Ошибка при удалении студентов группы {}: {}", groupId, e.getMessage(), e);
         }
         return false;
     }

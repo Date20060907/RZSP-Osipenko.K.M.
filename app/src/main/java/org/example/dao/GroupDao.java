@@ -1,20 +1,29 @@
 package org.example.dao;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.example.dataclasses.Group;
 import org.example.util.DatabaseManager;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.example.dataclasses.Group;
-
+/**
+ * Класс доступа к данным (DAO) для сущности группы (Group).
+ * Обеспечивает взаимодействие с таблицей 'groups' в базе данных,
+ * предоставляя методы для вставки, поиска, обновления и удаления записей.
+ */
 public class GroupDao {
 
+    private static final Logger logger = LogManager.getLogger(GroupDao.class);
     private static final String TABLE_NAME = "groups";
 
     /**
-     * Добавить новую группу в БД.
-     * @return ID новой группы, или -1 при ошибке
+     * Вставляет новую группу в базу данных.
+     *
+     * @param group объект группы для сохранения
+     * @return идентификатор вставленной группы или -1 в случае ошибки
      */
     public int insert(Group group) {
         String sql = "INSERT INTO " + TABLE_NAME + " (name) VALUES (?)";
@@ -34,13 +43,16 @@ public class GroupDao {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при добавлении группы: " + e.getMessage());
+            logger.error("Ошибка при добавлении группы: {}", e.getMessage(), e);
         }
         return -1;
     }
 
     /**
-     * Получить группу по ID.
+     * Находит группу по её уникальному идентификатору.
+     *
+     * @param id идентификатор группы
+     * @return объект Group или null, если запись не найдена
      */
     public Group findById(int id) {
         String sql = "SELECT id, name FROM " + TABLE_NAME + " WHERE id = ?";
@@ -54,13 +66,15 @@ public class GroupDao {
                 return new Group(rs.getInt("id"), rs.getString("name"));
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при поиске группы по ID: " + e.getMessage());
+            logger.error("Ошибка при поиске группы по ID {}: {}", id, e.getMessage(), e);
         }
         return null;
     }
 
     /**
-     * Получить все группы.
+     * Возвращает список всех групп из базы данных.
+     *
+     * @return список объектов Group, возможно пустой
      */
     public List<Group> findAll() {
         List<Group> groups = new ArrayList<>();
@@ -74,13 +88,16 @@ public class GroupDao {
                 groups.add(new Group(rs.getInt("id"), rs.getString("name")));
             }
         } catch (SQLException e) {
-            System.err.println("Ошибка при получении списка групп: " + e.getMessage());
+            logger.error("Ошибка при получении списка всех групп: {}", e.getMessage(), e);
         }
         return groups;
     }
 
     /**
-     * Обновить данные группы.
+     * Обновляет данные существующей группы в базе данных.
+     *
+     * @param group объект группы с обновлёнными данными
+     * @return true, если обновление прошло успешно, иначе false
      */
     public boolean update(Group group) {
         String sql = "UPDATE " + TABLE_NAME + " SET name = ? WHERE id = ?";
@@ -91,14 +108,18 @@ public class GroupDao {
             pstmt.setInt(2, group.getId());
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Ошибка при обновлении группы: " + e.getMessage());
+            logger.error("Ошибка при обновлении группы с ID {}: {}", group.getId(), e.getMessage(), e);
         }
         return false;
     }
 
     /**
-     * Удалить группу по ID.
-     * (Каскадное удаление из других таблиц поддерживается за счёт FOREIGN KEY ON DELETE CASCADE)
+     * Удаляет группу по её уникальному идентификатору.
+     * Удаление сопровождается каскадным удалением связанных записей
+     * в других таблицах за счёт настроек внешних ключей (ON DELETE CASCADE).
+     *
+     * @param id идентификатор группы
+     * @return true, если запись была удалена, иначе false
      */
     public boolean deleteById(int id) {
         String sql = "DELETE FROM " + TABLE_NAME + " WHERE id = ?";
@@ -108,7 +129,7 @@ public class GroupDao {
             pstmt.setInt(1, id);
             return pstmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Ошибка при удалении группы: " + e.getMessage());
+            logger.error("Ошибка при удалении группы с ID {}: {}", id, e.getMessage(), e);
         }
         return false;
     }

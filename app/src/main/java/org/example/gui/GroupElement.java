@@ -1,10 +1,5 @@
 package org.example.gui;
 
-import java.io.IOException;
-
-import org.example.dao.GroupDao;
-import org.example.dataclasses.Group;
-
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -13,61 +8,95 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.example.dao.GroupDao;
+import org.example.dataclasses.Group;
 
+import java.io.IOException;
+
+/**
+ * Ячейка списка групп, отображающая название группы и кнопку удаления.
+ * Используется в {@link ListView} для отображения списка групп.
+ */
 public class GroupElement extends ListCell<Group> {
 
-	private final HBox root;
-	private final Label groupNameLabel;
-	private final Button deleteButton;
+    private static final Logger logger = LogManager.getLogger(GroupElement.class);
 
-	public GroupElement() {
-		try {
-			// Загружаем FXML один раз при создании ячейки
-			FXMLLoader loader = new FXMLLoader(
-					getClass().getResource("/GroupElement.fxml"));
-			loader.setController(this);
-			root = loader.load();
+    /**
+     * Корневой контейнер, загруженный из FXML.
+     */
+    private final HBox root;
 
-			groupNameLabel = (Label) root.lookup("#groupNameLabel");
-			deleteButton = (Button) root.lookup("#deleteButton");
+    /**
+     * Метка с названием группы.
+     */
+    private final Label groupNameLabel;
 
-			deleteButton.setOnAction(e -> delete());
+    /**
+     * Кнопка удаления группы.
+     */
+    private final Button deleteButton;
 
-		} catch (IOException e) {
-			throw new RuntimeException("Не удалось загрузить GroupElement.fxml", e);
-		}
-	}
+    /**
+     * Создаёт новую ячейку, загружая её внешний вид из файла FXML.
+     * Инициализирует обработчик события для кнопки удаления.
+     *
+     * @throws RuntimeException если не удаётся загрузить FXML-файл
+     */
+    public GroupElement() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/GroupElement.fxml"));
+            loader.setController(this);
+            root = loader.load();
 
-	@FXML
-	private void delete() {
-		        Group itemToDelete = getItem(); // Получаем Group, связанный с этой ячейкой
+            groupNameLabel = (Label) root.lookup("#groupNameLabel");
+            deleteButton = (Button) root.lookup("#deleteButton");
+
+            deleteButton.setOnAction(e -> delete());
+        } catch (IOException e) {
+            throw new RuntimeException("Не удалось загрузить GroupElement.fxml", e);
+        }
+    }
+
+    /**
+     * Обработчик нажатия кнопки удаления.
+     * Удаляет группу из списка и из базы данных.
+     */
+    @FXML
+    private void delete() {
+        Group itemToDelete = getItem();
         if (itemToDelete != null) {
-            // Получаем ссылку на ListView через getParent (HBox -> ListCell -> ListView)
-            // Более надежный способ - через getListView()
             ListView<Group> listView = getListView();
             if (listView != null) {
                 ObservableList<Group> items = listView.getItems();
-                // Удаляем из модели представления
                 items.remove(itemToDelete);
 
-                // Удаляем из базы данных
-                GroupDao groupDao = new GroupDao(); // Убедитесь, что GroupDao может быть создан или внедрен
-                groupDao.deleteById(itemToDelete.getId()); // Предполагается, что Group имеет ID
-
-                System.out.println("Группа \"" + itemToDelete.getName() + "\" удалена.");
+                GroupDao groupDao = new GroupDao();
+                boolean deleted = groupDao.deleteById(itemToDelete.getId());
+                if (deleted) {
+                    logger.info("Группа \"{}\" успешно удалена", itemToDelete.getName());
+                } else {
+                    logger.warn("Не удалось удалить группу \"{}\" из базы данных", itemToDelete.getName());
+                }
             }
         }
-	}
+    }
 
-	@Override
-	protected void updateItem(Group item, boolean empty) {
-		super.updateItem(item, empty);
-		if (empty || item == null) {
-			setGraphic(null);
-		} else {
-			groupNameLabel.setText(item.getName());
-			setGraphic(root);
-		}
-	}
-
+    /**
+     * Обновляет содержимое ячейки в зависимости от связанного объекта группы.
+     *
+     * @param item объект группы или null
+     * @param empty флаг, указывающий, является ли ячейка пустой
+     */
+    @Override
+    protected void updateItem(Group item, boolean empty) {
+        super.updateItem(item, empty);
+        if (empty || item == null) {
+            setGraphic(null);
+        } else {
+            groupNameLabel.setText(item.getName());
+            setGraphic(root);
+        }
+    }
 }
