@@ -5,11 +5,16 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.example.dao.GroupDao;
+import org.example.dao.StudentDao;
 import org.example.dataclasses.Group;
+import org.example.dataclasses.Student;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -49,10 +54,9 @@ public class GroupListController {
         Stage currentStage = (Stage) importButton.getScene().getWindow();
 
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите CSV файл с группами");
+        fileChooser.setTitle("Выберите CSV файл с группами и студентами");
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("CSV файлы", "*.csv")
-        );
+                new FileChooser.ExtensionFilter("CSV файлы", "*.csv"));
 
         File selectedFile = fileChooser.showOpenDialog(currentStage);
         if (selectedFile == null) {
@@ -65,31 +69,80 @@ public class GroupListController {
             return;
         }
 
-        Set<String> uniqueGroupNames = new HashSet<>();
+        // Для эффективности: кэшируем ID групп по названию
+        Map<String, Integer> groupNameToId = new HashMap<>();
+        GroupDao groupDao = new GroupDao();
+        StudentDao studentDao = new StudentDao();
+
+        int groupAddedCount = 0;
+        int studentAddedCount = 0;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(selectedFile, StandardCharsets.UTF_8))) {
             String line;
             boolean firstLine = true;
 
             while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
-
-                // Пропускаем заголовок (первая строка)
+                if (line.trim().isEmpty())
+                    continue;
                 if (firstLine) {
                     firstLine = false;
-                    continue;
+                    continue; // пропускаем заголовок
                 }
 
-                // Разделяем по запятой (CSV)
                 String[] parts = line.split(",", -1);
                 if (parts.length < 2) {
                     System.err.println("Пропущена некорректная строка: " + line);
                     continue;
                 }
 
+                String fullName = parts[0].trim();
                 String groupName = parts[1].trim();
-                if (!groupName.isEmpty()) {
-                    uniqueGroupNames.add(groupName);
+
+                if (fullName.isEmpty() || groupName.isEmpty()) {
+                    continue;
+                }
+
+                // --- 1. Убедимся, что группа существует ---
+                Integer groupId = groupNameToId.get(groupName);
+                if (groupId == null) {
+                    // Проверяем, есть ли уже такая группа
+                    List<Group> allGroups = groupDao.findAll();
+                    Group existingGroup = allGroups.stream()
+                            .filter(g -> g.getName().equals(groupName))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (existingGroup == null) {
+                        // Создаём новую группу
+                        Group newGroup = new Group(groupName);
+                        int id = groupDao.insert(newGroup);
+                        if (id != -1) {
+                            newGroup.setId(id);
+                            groupId = id;
+                            groupNameToId.put(groupName, groupId);
+                            groupAddedCount++;
+                        } else {
+                            System.err.println("Не удалось создать группу: " + groupName);
+                            continue;
+                        }
+                    } else {
+                        groupId = existingGroup.getId();
+                        groupNameToId.put(groupName, groupId);
+                    }
+                }
+
+                // --- 2. Добавляем студента ---
+                // Проверяем, существует ли уже студент с таким ФИО в этой группе
+                List<Student> studentsInGroup = studentDao.findByGroupId(groupId);
+                boolean studentExists = studentsInGroup.stream()
+                        .anyMatch(s -> s.getFullName().equals(fullName));
+
+                if (!studentExists) {
+                    Student newStudent = new Student(fullName, groupId);
+                    int studentId = studentDao.insert(newStudent);
+                    if (studentId != -1) {
+                        studentAddedCount++;
+                    }
                 }
             }
         } catch (IOException e) {
@@ -98,28 +151,13 @@ public class GroupListController {
             return;
         }
 
-        // Добавляем новые группы в БД
-        GroupDao groupDao = new GroupDao();
-        int addedCount = 0;
-
-        for (String groupName : uniqueGroupNames) {
-            boolean exists = groupDao.findAll().stream()
-                .anyMatch(g -> g.getName().equals(groupName));
-
-            if (!exists) {
-                Group newGroup = new Group(groupName);
-                int id = groupDao.insert(newGroup);
-                if (id != -1) {
-                    addedCount++;
-                }
-            }
-        }
-
-        // Обновляем список в интерфейсе
+        // Обновляем список групп в интерфейсе
         loadGroupsFromDatabase();
         groupListView.setItems(groups);
 
-        System.out.println("Импорт завершён. Добавлено новых групп: " + addedCount);
+        System.out.println("Импорт завершён.");
+        System.out.println("Добавлено групп: " + groupAddedCount);
+        System.out.println("Добавлено студентов: " + studentAddedCount);
     }
 
     /**

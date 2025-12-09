@@ -1,8 +1,10 @@
 package org.example.gui;
 
 import org.example.dataclasses.Group;
+import org.example.dataclasses.Lesson;
 import org.example.dataclasses.Subject;
 import org.example.dataclasses.SubjectGroupLink;
+import org.example.dao.LessonDao;
 import org.example.dao.SubjectDao;
 import org.example.dao.SubjectGroupLinkDao;
 
@@ -20,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 public class AddSubjectPopupMenuController {
@@ -74,8 +77,7 @@ public class AddSubjectPopupMenuController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите CSV-файл с дисциплиной");
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("CSV файлы", "*.csv")
-        );
+                new FileChooser.ExtensionFilter("CSV файлы", "*.csv"));
 
         File selectedFile = fileChooser.showOpenDialog(currentStage);
         if (selectedFile == null) {
@@ -89,15 +91,25 @@ public class AddSubjectPopupMenuController {
         }
 
         String subjectName = null;
+        List<String> lessonNames = new ArrayList<>();
+
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(new FileInputStream(selectedFile), StandardCharsets.UTF_8))) {
 
-            String firstLine = reader.readLine();
-            if (firstLine == null || firstLine.trim().isEmpty()) {
-                System.err.println("Файл пустой или не содержит название дисциплины.");
-                return;
+            String line;
+            boolean first = true;
+            while ((line = reader.readLine()) != null) {
+                String name = line.trim();
+                if (name.isEmpty())
+                    continue;
+
+                if (first) {
+                    subjectName = name;
+                    first = false;
+                } else {
+                    lessonNames.add(name);
+                }
             }
-            subjectName = firstLine.trim();
         } catch (IOException e) {
             System.err.println("Ошибка чтения файла: " + e.getMessage());
             e.printStackTrace();
@@ -110,6 +122,8 @@ public class AddSubjectPopupMenuController {
         }
 
         SubjectDao subjectDao = new SubjectDao();
+        LessonDao lessonDao = new LessonDao(); // ← добавили
+
         Subject existing = subjectDao.findByName(subjectName);
         if (existing != null) {
             System.out.println("Предмет \"" + subjectName + "\" уже существует.");
@@ -117,15 +131,28 @@ public class AddSubjectPopupMenuController {
             return;
         }
 
+        // --- 1. Создаём предмет ---
         Subject newSubject = new Subject(subjectName);
-        int id = subjectDao.insert(newSubject);
-        if (id != -1) {
-            newSubject.setId(id);
-            System.out.println("✅ Предмет добавлен: " + subjectName);
-            refreshSubjectListAndSelect(newSubject);
-        } else {
+        int subjectId = subjectDao.insert(newSubject);
+        if (subjectId == -1) {
             System.err.println("❌ Не удалось добавить предмет: " + subjectName);
+            return;
         }
+        newSubject.setId(subjectId);
+        System.out.println("✅ Предмет добавлен: " + subjectName);
+
+        // --- 2. Создаём занятия ---
+        int lessonCount = 0;
+        for (String lessonName : lessonNames) {
+            Lesson lesson = new Lesson(lessonName, subjectId);
+            if (lessonDao.insert(lesson) != -1) {
+                lessonCount++;
+            }
+        }
+        System.out.println("✅ Добавлено занятий: " + lessonCount);
+
+        // Обновляем список
+        refreshSubjectListAndSelect(newSubject);
     }
 
     private void refreshSubjectListAndSelect(Subject subjectToSelect) {
